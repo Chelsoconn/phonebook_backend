@@ -9,13 +9,6 @@ require('dotenv').config();
 const Person = require('./models/person')
 //
 
-const generateId = () => {
-  return String(Math.floor(Math.random() * 10000000) + 1)
-}
-
-const nameExists = (name) => {
-  return persons.find(p => p.name === name)
-}
 
 app.use(express.json())
 app.use(cors())
@@ -32,56 +25,49 @@ app.get('/info', (request, response) => {
 })
 
 app.get('/api/persons', (request, response) => {
-  response.json(persons)
+  Person.find({}).then(pers => {
+    response.json(pers)
+  })
 })
 
 app.get('/api/persons/:id', (request, response) => {
-  const id = request.params.id
-  const person = persons.find(p => p.id === id)
-  console.log(person)
-
-  if (person) {
-    response.json(person)
-  } else {
-    console.log(`No person exists with id ${id}`)
-    response.status(404).end()
-  }
+  Person.findById(request.params.id).then(pers => {
+    response.json(pers)
+  })
 })
 
-app.post('/api/persons', (request, response) => {
-  const body = request.body
+app.post('/api/persons', async (request, response) => {
+  const body = request.body;
 
-    if (!body.name) {
-    return response.status(404).json({
-      error: 'name is missing'
-    })
-  } else if (!body.number) {
-    return response.status(404).json({
-      error: 'number is missing'
-    })
-  } else if (nameExists(body.name)) {
-    return response.status(404).json({
-      error: 'name must be unique'
-    })
+  if (!body.name) {
+    return response.status(400).json({ error: 'Name is missing' });
   }
 
-  const person = {
+  const person = new Person({
     name: body.name,
     number: body.number,
-    id: generateId()
-  }
+  });
 
-  persons = persons.concat(person)
-  console.log(person)
-  response.json(person)
-})
+  person
+    .save()
+    .then(savedPerson => {
+      response.json(savedPerson);
+    })
+});
+
+
+
 
 app.delete('/api/persons/:id', (request, response) => {
-  const id = request.params.id
-  persons = persons.filter(p => p.id !== id)
-
-  response.status(204).end()
+  Person.findByIdAndDelete(request.params.id).then(pers => {
+    response.status(204).end()
+  })
+  .catch(error => {
+    console.error('Error deleting the person:', error);
+    response.status(500).json({ error: 'Failed to delete the person' });
+  });
 })
+
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
